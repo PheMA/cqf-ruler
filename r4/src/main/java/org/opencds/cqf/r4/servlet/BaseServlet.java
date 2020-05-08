@@ -60,194 +60,198 @@ import ca.uhn.fhir.rest.server.interceptor.CorsInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.ResponseHighlighterInterceptor;
 
 public class BaseServlet extends RestfulServer {
-    DaoRegistry registry;
-    FhirContext fhirContext;
+        DaoRegistry registry;
+        FhirContext fhirContext;
 
-    @SuppressWarnings("unchecked")
-    @Override
-    protected void initialize() throws ServletException {
-        super.initialize();
+        @SuppressWarnings("unchecked")
+        @Override
+        protected void initialize() throws ServletException {
+                super.initialize();
 
-        // System level providers
-        ApplicationContext appCtx = (ApplicationContext) getServletContext()
-                .getAttribute("org.springframework.web.context.WebApplicationContext.ROOT");
+                // System level providers
+                ApplicationContext appCtx = (ApplicationContext) getServletContext()
+                                .getAttribute("org.springframework.web.context.WebApplicationContext.ROOT");
 
-        // Fhir Context
-        this.fhirContext = appCtx.getBean(FhirContext.class);
-        this.fhirContext.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-        this.fhirContext.registerCustomType(VersionedTerminologyRef.class);
-        this.fhirContext.registerCustomType(CodeTerminologyRef.class);
-        this.fhirContext.registerCustomType(PopulationCriteriaMap.class);
-        this.fhirContext.registerCustomType(CqfMeasure.class);
-        setFhirContext(this.fhirContext);
+                // Fhir Context
+                this.fhirContext = appCtx.getBean(FhirContext.class);
+                this.fhirContext.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
+                this.fhirContext.registerCustomType(VersionedTerminologyRef.class);
+                this.fhirContext.registerCustomType(CodeTerminologyRef.class);
+                this.fhirContext.registerCustomType(PopulationCriteriaMap.class);
+                this.fhirContext.registerCustomType(CqfMeasure.class);
+                setFhirContext(this.fhirContext);
 
-        // System and Resource Daos
-        IFhirSystemDao<Bundle, Meta> systemDao = appCtx.getBean("mySystemDaoR4", IFhirSystemDao.class);
-        this.registry = appCtx.getBean(DaoRegistry.class);
+                // System and Resource Daos
+                IFhirSystemDao<Bundle, Meta> systemDao = appCtx.getBean("mySystemDaoR4", IFhirSystemDao.class);
+                this.registry = appCtx.getBean(DaoRegistry.class);
 
-        // System and Resource Providers
-        Object systemProvider = appCtx.getBean("mySystemProviderR4", JpaSystemProviderR4.class);
-        registerProvider(systemProvider);
+                // System and Resource Providers
+                Object systemProvider = appCtx.getBean("mySystemProviderR4", JpaSystemProviderR4.class);
+                registerProvider(systemProvider);
 
-        ResourceProviderFactory resourceProviders = appCtx.getBean("myResourceProvidersR4",
-                ResourceProviderFactory.class);
-        registerProviders(resourceProviders.createProviders());
+                ResourceProviderFactory resourceProviders = appCtx.getBean("myResourceProvidersR4",
+                                ResourceProviderFactory.class);
+                registerProviders(resourceProviders.createProviders());
 
-        JpaConformanceProviderR4 confProvider = new JpaConformanceProviderR4(this, systemDao,
-                appCtx.getBean(DaoConfig.class));
-        confProvider.setImplementationDescription("CQF Ruler FHIR R4 Server");
-        setServerConformanceProvider(confProvider);
+                JpaConformanceProviderR4 confProvider = new JpaConformanceProviderR4(this, systemDao,
+                                appCtx.getBean(DaoConfig.class));
+                confProvider.setImplementationDescription("CQF Ruler FHIR R4 Server");
+                setServerConformanceProvider(confProvider);
 
-        JpaTerminologyProvider localSystemTerminologyProvider = new JpaTerminologyProvider(
-                appCtx.getBean("terminologyService", ITermReadSvcR4.class), getFhirContext(),
-                (ValueSetResourceProvider) this.getResourceProvider(ValueSet.class));
-        EvaluationProviderFactory providerFactory = new ProviderFactory(this.fhirContext, this.registry,
-                localSystemTerminologyProvider);
+                JpaTerminologyProvider localSystemTerminologyProvider = new JpaTerminologyProvider(
+                                appCtx.getBean("terminologyService", ITermReadSvcR4.class), getFhirContext(),
+                                (ValueSetResourceProvider) this.getResourceProvider(ValueSet.class));
+                EvaluationProviderFactory providerFactory = new ProviderFactory(this.fhirContext, this.registry,
+                                localSystemTerminologyProvider);
 
-        resolveProviders(providerFactory, localSystemTerminologyProvider, this.registry);
+                resolveProviders(providerFactory, localSystemTerminologyProvider, this.registry);
 
-        // CdsHooksServlet.provider = provider;
+                // CdsHooksServlet.provider = provider;
 
-        /*
-         * ETag Support
-         */
-        setETagSupport(HapiProperties.getEtagSupport());
+                /*
+                 * ETag Support
+                 */
+                setETagSupport(HapiProperties.getEtagSupport());
 
-        /*
-         * This server tries to dynamically generate narratives
-         */
-        FhirContext ctx = getFhirContext();
-        ctx.setNarrativeGenerator(new DefaultThymeleafNarrativeGenerator());
+                /*
+                 * This server tries to dynamically generate narratives
+                 */
+                FhirContext ctx = getFhirContext();
+                ctx.setNarrativeGenerator(new DefaultThymeleafNarrativeGenerator());
 
-        /*
-         * Default to JSON and pretty printing
-         */
-        setDefaultPrettyPrint(HapiProperties.getDefaultPrettyPrint());
+                /*
+                 * Default to JSON and pretty printing
+                 */
+                setDefaultPrettyPrint(HapiProperties.getDefaultPrettyPrint());
 
-        /*
-         * Default encoding
-         */
-        setDefaultResponseEncoding(HapiProperties.getDefaultEncoding());
+                /*
+                 * Default encoding
+                 */
+                setDefaultResponseEncoding(HapiProperties.getDefaultEncoding());
 
-        /*
-         * This configures the server to page search results to and from the database,
-         * instead of only paging them to memory. This may mean a performance hit when
-         * performing searches that return lots of results, but makes the server much
-         * more scalable.
-         */
-        setPagingProvider(appCtx.getBean(DatabaseBackedPagingProvider.class));
+                /*
+                 * This configures the server to page search results to and from the database,
+                 * instead of only paging them to memory. This may mean a performance hit when
+                 * performing searches that return lots of results, but makes the server much
+                 * more scalable.
+                 */
+                setPagingProvider(appCtx.getBean(DatabaseBackedPagingProvider.class));
 
-        /*
-         * This interceptor formats the output using nice colourful HTML output when the
-         * request is detected to come from a browser.
-         */
-        ResponseHighlighterInterceptor responseHighlighterInterceptor = appCtx
-                .getBean(ResponseHighlighterInterceptor.class);
-        this.registerInterceptor(responseHighlighterInterceptor);
+                /*
+                 * This interceptor formats the output using nice colourful HTML output when the
+                 * request is detected to come from a browser.
+                 */
+                ResponseHighlighterInterceptor responseHighlighterInterceptor = appCtx
+                                .getBean(ResponseHighlighterInterceptor.class);
+                this.registerInterceptor(responseHighlighterInterceptor);
 
-        /*
-         * If you are hosting this server at a specific DNS name, the server will try to
-         * figure out the FHIR base URL based on what the web container tells it, but
-         * this doesn't always work. If you are setting links in your search bundles
-         * that just refer to "localhost", you might want to use a server address
-         * strategy:
-         */
-        String serverAddress = HapiProperties.getServerAddress();
-        if (serverAddress != null && serverAddress.length() > 0) {
-            setServerAddressStrategy(new HardcodedServerAddressStrategy(serverAddress));
+                /*
+                 * If you are hosting this server at a specific DNS name, the server will try to
+                 * figure out the FHIR base URL based on what the web container tells it, but
+                 * this doesn't always work. If you are setting links in your search bundles
+                 * that just refer to "localhost", you might want to use a server address
+                 * strategy:
+                 */
+                String serverAddress = HapiProperties.getServerAddress();
+                if (serverAddress != null && serverAddress.length() > 0) {
+                        setServerAddressStrategy(new HardcodedServerAddressStrategy(serverAddress));
+                }
+
+                registerProvider(appCtx.getBean(TerminologyUploaderProvider.class));
+
+                if (HapiProperties.getCorsEnabled()) {
+                        CorsConfiguration config = new CorsConfiguration();
+                        config.addAllowedHeader("x-fhir-starter");
+                        config.addAllowedHeader("Origin");
+                        config.addAllowedHeader("Accept");
+                        config.addAllowedHeader("X-Requested-With");
+                        config.addAllowedHeader("Content-Type");
+                        config.addAllowedHeader("Authorization");
+                        config.addAllowedHeader("Cache-Control");
+
+                        config.addAllowedOrigin(HapiProperties.getCorsAllowedOrigin());
+
+                        config.addExposedHeader("Location");
+                        config.addExposedHeader("Content-Location");
+                        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+                        // Create the interceptor and register it
+                        CorsInterceptor interceptor = new CorsInterceptor(config);
+                        registerInterceptor(interceptor);
+                }
         }
 
-        registerProvider(appCtx.getBean(TerminologyUploaderProvider.class));
-
-        if (HapiProperties.getCorsEnabled()) {
-            CorsConfiguration config = new CorsConfiguration();
-            config.addAllowedHeader("x-fhir-starter");
-            config.addAllowedHeader("Origin");
-            config.addAllowedHeader("Accept");
-            config.addAllowedHeader("X-Requested-With");
-            config.addAllowedHeader("Content-Type");
-            config.addAllowedHeader("Authorization");
-            config.addAllowedHeader("Cache-Control");
-
-            config.addAllowedOrigin(HapiProperties.getCorsAllowedOrigin());
-
-            config.addExposedHeader("Location");
-            config.addExposedHeader("Content-Location");
-            config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-            // Create the interceptor and register it
-            CorsInterceptor interceptor = new CorsInterceptor(config);
-            registerInterceptor(interceptor);
+        protected NarrativeProvider getNarrativeProvider() {
+                return new NarrativeProvider();
         }
-    }
 
-    protected NarrativeProvider getNarrativeProvider() {
-        return new NarrativeProvider();
-    }
+        // Since resource provider resolution not lazy, the providers here must be
+        // resolved in the correct
+        // order of dependencies.
+        private void resolveProviders(EvaluationProviderFactory providerFactory,
+                        JpaTerminologyProvider localSystemTerminologyProvider, DaoRegistry registry)
+                        throws ServletException {
+                NarrativeProvider narrativeProvider = this.getNarrativeProvider();
+                HQMFProvider hqmfProvider = new HQMFProvider();
 
-    // Since resource provider resolution not lazy, the providers here must be
-    // resolved in the correct
-    // order of dependencies.
-    private void resolveProviders(EvaluationProviderFactory providerFactory,
-            JpaTerminologyProvider localSystemTerminologyProvider, DaoRegistry registry) throws ServletException {
-        NarrativeProvider narrativeProvider = this.getNarrativeProvider();
-        HQMFProvider hqmfProvider = new HQMFProvider();
+                // Code System Update
+                CodeSystemUpdateProvider csUpdate = new CodeSystemUpdateProvider(this.getDao(ValueSet.class),
+                                this.getDao(CodeSystem.class));
+                this.registerProvider(csUpdate);
 
-        // Code System Update
-        CodeSystemUpdateProvider csUpdate = new CodeSystemUpdateProvider(this.getDao(ValueSet.class),
-                this.getDao(CodeSystem.class));
-        this.registerProvider(csUpdate);
+                // Cache Value Sets
+                CacheValueSetsProvider cvs = new CacheValueSetsProvider(this.registry.getSystemDao(),
+                                this.getDao(Endpoint.class));
+                this.registerProvider(cvs);
 
-        // Cache Value Sets
-        CacheValueSetsProvider cvs = new CacheValueSetsProvider(this.registry.getSystemDao(),
-                this.getDao(Endpoint.class));
-        this.registerProvider(cvs);
+                // Library processing
+                LibraryOperationsProvider libraryProvider = new LibraryOperationsProvider(
+                                (LibraryResourceProvider) this.getResourceProvider(Library.class), narrativeProvider,
+                                registry, localSystemTerminologyProvider);
+                this.registerProvider(libraryProvider);
 
-        // Library processing
-        LibraryOperationsProvider libraryProvider = new LibraryOperationsProvider(
-                (LibraryResourceProvider) this.getResourceProvider(Library.class), narrativeProvider);
-        this.registerProvider(libraryProvider);
+                // CQL Execution
+                CqlExecutionProvider cql = new CqlExecutionProvider(libraryProvider, providerFactory);
+                this.registerProvider(cql);
 
-        // CQL Execution
-        CqlExecutionProvider cql = new CqlExecutionProvider(libraryProvider, providerFactory);
-        this.registerProvider(cql);
+                // Bundle processing
+                ApplyCqlOperationProvider bundleProvider = new ApplyCqlOperationProvider(providerFactory,
+                                this.getDao(Bundle.class));
+                this.registerProvider(bundleProvider);
 
-        // Bundle processing
-        ApplyCqlOperationProvider bundleProvider = new ApplyCqlOperationProvider(providerFactory,
-                this.getDao(Bundle.class));
-        this.registerProvider(bundleProvider);
+                // Measure processing
+                MeasureOperationsProvider measureProvider = new MeasureOperationsProvider(this.registry,
+                                providerFactory, narrativeProvider, hqmfProvider, libraryProvider,
+                                (MeasureResourceProvider) this.getResourceProvider(Measure.class));
+                this.registerProvider(measureProvider);
 
-        // Measure processing
-        MeasureOperationsProvider measureProvider = new MeasureOperationsProvider(this.registry, providerFactory,
-                narrativeProvider, hqmfProvider, libraryProvider,
-                (MeasureResourceProvider) this.getResourceProvider(Measure.class));
-        this.registerProvider(measureProvider);
+                // // ActivityDefinition processing
+                ActivityDefinitionApplyProvider actDefProvider = new ActivityDefinitionApplyProvider(this.fhirContext,
+                                cql, this.getDao(ActivityDefinition.class));
+                this.registerProvider(actDefProvider);
 
-        // // ActivityDefinition processing
-        ActivityDefinitionApplyProvider actDefProvider = new ActivityDefinitionApplyProvider(this.fhirContext, cql,
-                this.getDao(ActivityDefinition.class));
-        this.registerProvider(actDefProvider);
+                JpaFhirRetrieveProvider localSystemRetrieveProvider = new JpaFhirRetrieveProvider(registry,
+                                new SearchParameterResolver(this.fhirContext));
 
-        JpaFhirRetrieveProvider localSystemRetrieveProvider = new JpaFhirRetrieveProvider(registry,
-                new SearchParameterResolver(this.fhirContext));
+                // PlanDefinition processing
+                PlanDefinitionApplyProvider planDefProvider = new PlanDefinitionApplyProvider(this.fhirContext,
+                                actDefProvider, this.getDao(PlanDefinition.class),
+                                this.getDao(ActivityDefinition.class), cql);
+                this.registerProvider(planDefProvider);
 
-        // PlanDefinition processing
-        PlanDefinitionApplyProvider planDefProvider = new PlanDefinitionApplyProvider(this.fhirContext, actDefProvider,
-                this.getDao(PlanDefinition.class), this.getDao(ActivityDefinition.class), cql);
-        this.registerProvider(planDefProvider);
+                CdsHooksServlet.setPlanDefinitionProvider(planDefProvider);
+                CdsHooksServlet.setLibraryResolutionProvider(libraryProvider);
+                CdsHooksServlet.setSystemTerminologyProvider(localSystemTerminologyProvider);
+                CdsHooksServlet.setSystemRetrieveProvider(localSystemRetrieveProvider);
+        }
 
-        CdsHooksServlet.setPlanDefinitionProvider(planDefProvider);
-        CdsHooksServlet.setLibraryResolutionProvider(libraryProvider);
-        CdsHooksServlet.setSystemTerminologyProvider(localSystemTerminologyProvider);
-        CdsHooksServlet.setSystemRetrieveProvider(localSystemRetrieveProvider);
-    }
+        protected <T extends IBaseResource> IFhirResourceDao<T> getDao(Class<T> clazz) {
+                return this.registry.getResourceDao(clazz);
+        }
 
-    protected <T extends IBaseResource> IFhirResourceDao<T> getDao(Class<T> clazz) {
-        return this.registry.getResourceDao(clazz);
-    }
-
-    protected <T extends IBaseResource> BaseJpaResourceProvider<T> getResourceProvider(Class<T> clazz) {
-        return (BaseJpaResourceProvider<T>) this.getResourceProviders().stream()
-                .filter(x -> x.getResourceType().getSimpleName().equals(clazz.getSimpleName())).findFirst().get();
-    }
+        protected <T extends IBaseResource> BaseJpaResourceProvider<T> getResourceProvider(Class<T> clazz) {
+                return (BaseJpaResourceProvider<T>) this.getResourceProviders().stream()
+                                .filter(x -> x.getResourceType().getSimpleName().equals(clazz.getSimpleName()))
+                                .findFirst().get();
+        }
 }
