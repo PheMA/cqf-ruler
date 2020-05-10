@@ -243,7 +243,7 @@ public class LibraryOperationsProvider implements LibraryResolutionProvider<org.
 
         var evalResult = engine.evaluate(libraryIdentifier,
                 Pair.of(contextParam != null ? contextParam : "Unspecified", patientId == null ? "null" : patientId),
-                Map.of(null, null));
+                resolvedParameters);
 
         List<Resource> results = new ArrayList<>();
         FhirMeasureBundler bundler = new FhirMeasureBundler();
